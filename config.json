@@ -1,0 +1,15 @@
+{
+  "routes": [
+    {
+      "label": "SYD to HCM (round-trip)",
+      "origin": "SYD",
+      "destination": "SGN",
+      "departure_date": "2026-08-28",
+      "return_date": "2026-09-13",
+      "price_limit": 490,
+      "adults": 1,
+      "currency": "AUD"
+    }
+    
+  ]
+}
