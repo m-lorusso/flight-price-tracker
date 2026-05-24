@@ -209,7 +209,8 @@ def main():
         else:
             header = f"✈️ <b>Flight Tracker Update</b>\n"
 
-        msg  = header
+        msg  = "――――――――――――――――――――――――\n"
+        msg += header
         msg += f"🕐 Data pulled: {now_str}\n"
         msg += f"<b>{origin} → {destination}</b> ({trip_type}) | Depart {dep_date}\n\n"
 
