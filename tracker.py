@@ -18,6 +18,15 @@ LOWEST_FILE = Path(__file__).parent / "lowest_prices.json"
 
 MEDALS = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
 
+DISCOUNT_AIRLINES = {
+    "Qatar Airways",
+    "Singapore Airlines",
+    "Cathay Pacific",
+    "Emirates",
+    "Malaysia Airlines",
+    "Virgin Australia",
+}
+
 # Airports to avoid — Middle East hubs
 BLOCKED_AIRPORTS = {
     "DOH",  # Doha, Qatar
@@ -237,7 +246,14 @@ def main():
             medal    = MEDALS[i] if i < len(MEDALS) else f"{i+1}."
             segments = offer["segments"]
 
-            msg += f"\n{medal} <b>{currency} {offer['price']}</b> — {offer['airline']}\n"
+            airline      = offer['airline']
+            full_price   = offer['price']
+            discounted   = round(full_price * 0.9)
+            has_discount = any(d.lower() in airline.lower() for d in DISCOUNT_AIRLINES)
+
+            msg += f"\n{medal} <b>{currency} {full_price}</b> — {airline}\n"
+            if has_discount:
+                msg += f"   🎓 With 10% discount: <b>{currency} {discounted}</b>\n"
             msg += f"   🛫 Departs: {offer['departure_at']}\n"
 
             for seg in segments:
