@@ -13,8 +13,10 @@ SERPAPI_KEY    = os.getenv("SERPAPI_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT  = os.getenv("TELEGRAM_CHAT_ID")
 
-CONFIG_FILE  = Path(__file__).parent / "config.json"
-LOWEST_FILE  = Path(__file__).parent / "lowest_prices.json"
+CONFIG_FILE = Path(__file__).parent / "config.json"
+LOWEST_FILE = Path(__file__).parent / "lowest_prices.json"
+
+MEDALS = ["🥇", "🥈", "🥉"]
 
 
 def search_flights(origin, destination, departure_date,
@@ -41,21 +43,35 @@ def search_flights(origin, destination, departure_date,
 
     all_offers = data.get("best_flights", []) + data.get("other_flights", [])
     if not all_offers:
-        return None
+        return []
 
     all_offers.sort(key=lambda o: o.get("price", float("inf")))
-    best = all_offers[0]
-    first_leg = best.get("flights", [{}])[0]
 
-    return {
-        "price":        best.get("price"),
-        "currency":     currency,
-        "airline":      first_leg.get("airline", "N/A"),
-        "duration_min": best.get("total_duration"),
-        "departure_at": first_leg.get("departure_airport", {}).get("time", departure_date),
-        "arrival_at":   first_leg.get("arrival_airport", {}).get("time", ""),
-        "stops":        len(best.get("flights", [])) - 1,
-    }
+    results = []
+    for offer in all_offers[:3]:
+        legs = offer.get("flights", [])
+        first_leg = legs[0] if legs else {}
+        last_leg  = legs[-1] if legs else {}
+
+        stopovers = []
+        for leg in legs[:-1]:
+            arr = leg.get("arrival_airport", {})
+            stopovers.append({
+                "name": arr.get("name", ""),
+                "code": arr.get("id", ""),
+            })
+
+        results.append({
+            "price":        offer.get("price"),
+            "airline":      first_leg.get("airline", "N/A"),
+            "duration_min": offer.get("total_duration"),
+            "departure_at": first_leg.get("departure_airport", {}).get("time", departure_date),
+            "arrival_at":   last_leg.get("arrival_airport", {}).get("time", ""),
+            "stops":        len(legs) - 1,
+            "stopovers":    stopovers,
+        })
+
+    return results
 
 
 def send_telegram(message: str):
@@ -110,10 +126,10 @@ def main():
     if not routes:
         sys.exit("No routes defined in config.json")
 
-    print(f"\nFlight tracker started — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-
     lowest  = load_lowest()
-    summary = []
+    now_str = datetime.now().strftime("%d %b %Y, %I:%M %p")
+
+    print(f"\nFlight tracker started — {now_str}")
 
     for route in routes:
         origin      = route["origin"].upper()
@@ -128,73 +144,83 @@ def main():
         print(f"  Checking {label}...")
 
         try:
-            offer = search_flights(origin, destination, dep_date, ret_date, adults, currency)
+            offers = search_flights(origin, destination, dep_date, ret_date, adults, currency)
         except Exception as e:
             print(f"    Error: {e}")
-            summary.append(f"⚠️ {label}: error — {e}")
+            try:
+                send_telegram(f"⚠️ {label}: error fetching flights — {e}")
+            except Exception:
+                pass
             continue
 
-        if offer is None:
-            print(f"    No flights found.")
-            summary.append(f"❓ {label}: No flights found")
+        if not offers:
+            print("    No flights found.")
+            try:
+                send_telegram(f"❓ {label}: No flights found")
+            except Exception:
+                pass
             continue
 
-        price     = offer["price"]
-        stops_str = "Direct" if offer["stops"] == 0 else f"{offer['stops']} stop(s)"
-        prev_low  = lowest.get(key, {}).get("price")
-
-        print(f"    Price: {currency} {price}  |  {offer['airline']}  |  {stops_str}  |  {fmt_duration(offer['duration_min'])}")
-
-        is_new_low = prev_low is None or price < prev_low
-        gf_url = f"https://www.google.com/flights?hl=en#flt={origin}.{destination}.{dep_date}"
-        trip_type = "Round-trip" if ret_date else "One-way"
+        best_price = offers[0]["price"]
+        prev_low   = lowest.get(key, {}).get("price")
+        is_new_low = prev_low is None or best_price < prev_low
 
         if is_new_low:
-            lowest[key] = {"price": price, "seen_at": datetime.now().isoformat()}
+            lowest[key] = {"price": best_price, "seen_at": datetime.now().isoformat()}
             save_lowest(lowest)
 
-            if prev_low is None:
-                headline = "First price recorded"
-                badge = "📊"
-            else:
-                drop = prev_low - price
-                headline = f"LOWEST PRICE SEEN — dropped {currency} {drop:.0f} from {currency} {prev_low:.0f}"
-                badge = "🔥"
+        trip_type = "Round-trip" if ret_date else "One-way"
 
-            msg = (
-                f"<b>{badge} {headline}</b>\n\n"
-                f"✈️ {trip_type}: <b>{origin} → {destination}</b>\n"
-                f"💰 Price: <b>{currency} {price}</b>\n"
-                f"📅 Depart: {offer['departure_at']}\n"
-                f"🛫 Airline: {offer['airline']}\n"
-                f"🛑 Stops: {stops_str}\n"
-                f"⏱ Duration: {fmt_duration(offer['duration_min'])}\n\n"
-                f"<a href='{gf_url}'>Search on Google Flights →</a>"
-            )
-            try:
-                send_telegram(msg)
-                print(f"    Alert sent — new low!")
-            except Exception as e:
-                print(f"    Telegram error: {e}")
-
-            summary.append(f"{badge} {label}: {currency} {price} — {headline}")
+        # Header
+        if is_new_low and prev_low is not None:
+            drop   = prev_low - best_price
+            header = f"🔥 <b>LOWEST PRICE SEEN — dropped {currency} {drop:.0f}!</b>\n"
+        elif is_new_low:
+            header = f"📊 <b>First price recorded</b>\n"
         else:
-            diff = price - prev_low
-            summary.append(
-                f"😴 {label}: {currency} {price}  ({offer['airline']}, {stops_str}, {fmt_duration(offer['duration_min'])})\n"
-                f"   ↳ Lowest seen: {currency} {prev_low:.0f}  (currently {currency} {diff:.0f} above)"
-            )
+            header = f"✈️ <b>Flight Tracker Update</b>\n"
 
-    # Send status update every run
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-    status_msg = f"<b>✈️ Flight Tracker Update</b> — {now_str}\n\n"
-    status_msg += "\n\n".join(summary) if summary else "No routes checked."
-    status_msg += "\n\n<i>Checking again in 6 hours.</i>"
+        msg  = header
+        msg += f"🕐 Data pulled: {now_str}\n"
+        msg += f"<b>{origin} → {destination}</b> ({trip_type}) | Depart {dep_date}\n\n"
 
-    try:
-        send_telegram(status_msg)
-    except Exception as e:
-        print(f"    Could not send status update: {e}")
+        if is_new_low:
+            msg += f"📉 Lowest price ever: <b>{currency} {best_price:.0f}</b> (just now!)\n\n"
+        else:
+            above = best_price - prev_low
+            msg += f"📉 Lowest price ever: <b>{currency} {prev_low:.0f}</b> — today's best is {currency} {above:.0f} above\n\n"
+
+        msg += "<b>Top 3 flights:</b>\n"
+
+        for i, offer in enumerate(offers):
+            medal = MEDALS[i] if i < len(MEDALS) else f"{i+1}."
+            stopovers = offer["stopovers"]
+            if stopovers:
+                stopover_str = ", ".join(
+                    f"{s['name']} ({s['code']})" if s["name"] else s["code"]
+                    for s in stopovers
+                )
+            else:
+                stopover_str = None
+
+            msg += f"\n{medal} <b>{currency} {offer['price']}</b> — {offer['airline']}\n"
+            msg += f"   🛫 Departs: {offer['departure_at']}\n"
+            msg += f"   🛬 Arrives: {offer['arrival_at']}\n"
+            msg += f"   ⏱ Flight time: {fmt_duration(offer['duration_min'])}\n"
+            if stopover_str:
+                msg += f"   🔁 Stopover: {stopover_str}\n"
+            else:
+                msg += f"   ✅ Direct\n"
+
+        gf_url = f"https://www.google.com/flights?hl=en#flt={origin}.{destination}.{dep_date}"
+        msg += f"\n<a href='{gf_url}'>Search on Google Flights →</a>"
+
+        print(msg)
+        try:
+            send_telegram(msg)
+            print("    Message sent!")
+        except Exception as e:
+            print(f"    Telegram error: {e}")
 
     print("Done.\n")
 
