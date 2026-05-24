@@ -210,49 +210,45 @@ def main():
             lowest[key] = {"price": best_price, "seen_at": datetime.now().isoformat()}
             save_lowest(lowest)
 
-        trip_type = "Round-trip" if ret_date else "One-way"
-
-        # Header
         if is_new_low and prev_low is not None:
             drop   = prev_low - best_price
-            header = f"🔥 <b>LOWEST PRICE SEEN — dropped {currency} {drop:.0f}!</b>\n"
+            header = f"🔥 <b>NEW LOW — -{currency} {drop:.0f}!</b>\n"
         elif is_new_low:
-            header = f"📊 <b>First price recorded</b>\n"
+            header = f"📊 <b>First check</b>\n"
         else:
-            header = f"✈️ <b>Flight Tracker Update</b>\n"
+            header = f"✈️ <b>{origin}→{destination}</b>\n"
+
+        if prev_seen_at:
+            seen_date = datetime.fromisoformat(prev_seen_at).strftime("%d %b %Y")
+        else:
+            seen_date = None
 
         msg  = "―――――――――――――――――――\n"
         msg += header
-        msg += f"🕐 Data pulled: {now_str}\n"
-        msg += f"<b>{origin} → {destination}</b> ({trip_type}) | Depart {dep_date}\n\n"
+        msg += f"🕐 {now_str} | Depart {dep_date}\n\n"
 
         if is_new_low:
-            msg += f"📉 Lowest price ever: <b>{currency} {best_price:.0f}</b> — first seen today ({now_str})\n\n"
+            msg += f"📉 Lowest ever: <b>{currency} {best_price:.0f}</b> (today)\n\n"
         else:
             above = best_price - prev_low
-            seen_date = datetime.fromisoformat(prev_seen_at).strftime("%d %b %Y, %I:%M %p") if prev_seen_at else "unknown date"
-            msg += f"📉 Lowest price ever: <b>{currency} {prev_low:.0f}</b> (seen {seen_date}) — today's best is {currency} {above:.0f} above\n\n"
-
-        msg += "<b>Top 3 flights:</b>\n"
+            msg += f"📉 Lowest ever: <b>{currency} {prev_low:.0f}</b> ({seen_date}) · +{currency} {above:.0f} now\n\n"
 
         for i, offer in enumerate(offers):
             medal    = MEDALS[i] if i < len(MEDALS) else f"{i+1}."
             segments = offer["segments"]
 
-            msg += f"\n{medal} <b>{currency} {offer['price']}</b> — {offer['airline']}\n"
-            msg += f"   🛫 Departs: {offer['departure_at']}\n"
+            legs_str = "  ".join(
+                f"{s['from_code']}→{s['to_code']} {fmt_duration(s['duration_min'])}"
+                + (f" | stop {fmt_duration(s['layover_min'])}" if s.get("layover_min") is not None else "")
+                for s in segments
+            )
 
-            for seg in segments:
-                msg += f"   ✈️  {seg['from_code']} → {seg['to_code']}: {fmt_duration(seg['duration_min'])}\n"
-                if seg.get("layover_min") is not None:
-                    stopover_name = seg["to_name"] or seg["to_code"]
-                    msg += f"   🔁 Layover {stopover_name}: {fmt_duration(seg['layover_min'])}\n"
-
-            msg += f"   🛬 Arrives: {offer['arrival_at']}\n"
-            msg += f"   ⏱ Total: {fmt_duration(offer['duration_min'])}\n"
+            msg += f"{medal} <b>{currency} {offer['price']}</b> · {offer['airline']}\n"
+            msg += f"   {offer['departure_at']} → {offer['arrival_at']} ({fmt_duration(offer['duration_min'])})\n"
+            msg += f"   {legs_str}\n\n"
 
         gf_url = f"https://www.google.com/flights?hl=en#flt={origin}.{destination}.{dep_date}"
-        msg += f"\n<a href='{gf_url}'>Search on Google Flights →</a>"
+        msg += f"<a href='{gf_url}'>Google Flights →</a>"
 
         print(msg)
         try:
