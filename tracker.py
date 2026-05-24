@@ -16,7 +16,7 @@ TELEGRAM_CHAT  = os.getenv("TELEGRAM_CHAT_ID")
 CONFIG_FILE = Path(__file__).parent / "config.json"
 LOWEST_FILE = Path(__file__).parent / "lowest_prices.json"
 
-MEDALS = ["🥇", "🥈", "🥉"]
+MEDALS = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
 
 # Airports to avoid — Middle East hubs
 BLOCKED_AIRPORTS = {
@@ -108,7 +108,7 @@ def search_flights(origin, destination, departure_date,
             "segments":     segments,
         })
 
-        if len(results) == 3:
+        if len(results) == 5:
             break
 
     return results
@@ -223,7 +223,7 @@ def main():
         else:
             seen_date = None
 
-        msg  = "―――――――――――――――――――\n"
+        msg  = "――――――――――――――――――\n"
         msg += header
         msg += f"🕐 {now_str} | Depart {dep_date}\n\n"
 
@@ -238,7 +238,7 @@ def main():
             segments = offer["segments"]
 
             msg += f"\n{medal} <b>{currency} {offer['price']}</b> — {offer['airline']}\n"
-            msg += f"   🛫 {offer['departure_at']}\n"
+            msg += f"   🛫 Departs: {offer['departure_at']}\n"
 
             for seg in segments:
                 msg += f"   ✈️  {seg['from_code']}→{seg['to_code']}: {fmt_duration(seg['duration_min'])}\n"
