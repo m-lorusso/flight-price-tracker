@@ -202,8 +202,9 @@ def main():
             continue
 
         best_price = offers[0]["price"]
-        prev_low   = lowest.get(key, {}).get("price")
-        is_new_low = prev_low is None or best_price < prev_low
+        prev_low      = lowest.get(key, {}).get("price")
+        prev_seen_at  = lowest.get(key, {}).get("seen_at")
+        is_new_low    = prev_low is None or best_price < prev_low
 
         if is_new_low:
             lowest[key] = {"price": best_price, "seen_at": datetime.now().isoformat()}
@@ -226,10 +227,11 @@ def main():
         msg += f"<b>{origin} → {destination}</b> ({trip_type}) | Depart {dep_date}\n\n"
 
         if is_new_low:
-            msg += f"📉 Lowest price ever: <b>{currency} {best_price:.0f}</b> (just now!)\n\n"
+            msg += f"📉 Lowest price ever: <b>{currency} {best_price:.0f}</b> — first seen today ({now_str})\n\n"
         else:
             above = best_price - prev_low
-            msg += f"📉 Lowest price ever: <b>{currency} {prev_low:.0f}</b> — today's best is {currency} {above:.0f} above\n\n"
+            seen_date = datetime.fromisoformat(prev_seen_at).strftime("%d %b %Y, %I:%M %p") if prev_seen_at else "unknown date"
+            msg += f"📉 Lowest price ever: <b>{currency} {prev_low:.0f}</b> (seen {seen_date}) — today's best is {currency} {above:.0f} above\n\n"
 
         msg += "<b>Top 3 flights:</b>\n"
 
