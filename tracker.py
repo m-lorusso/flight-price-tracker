@@ -79,13 +79,24 @@ def search_flights(origin, destination, departure_date,
         first_leg = legs[0] if legs else {}
         last_leg  = legs[-1] if legs else {}
 
-        stopovers = []
-        for leg in legs[:-1]:
+        layovers = offer.get("layovers", [])
+
+        segments = []
+        for i, leg in enumerate(legs):
+            dep = leg.get("departure_airport", {})
             arr = leg.get("arrival_airport", {})
-            stopovers.append({
-                "name": arr.get("name", ""),
-                "code": arr.get("id", ""),
-            })
+            seg = {
+                "from_code":    dep.get("id", ""),
+                "to_code":      arr.get("id", ""),
+                "to_name":      arr.get("name", ""),
+                "duration_min": leg.get("duration"),
+                "blocked":      arr.get("id", "").upper() in BLOCKED_AIRPORTS,
+            }
+            segments.append(seg)
+            if i < len(layovers):
+                seg["layover_min"] = layovers[i].get("duration")
+            else:
+                seg["layover_min"] = None
 
         results.append({
             "price":        offer.get("price"),
@@ -94,7 +105,7 @@ def search_flights(origin, destination, departure_date,
             "departure_at": first_leg.get("departure_airport", {}).get("time", departure_date),
             "arrival_at":   last_leg.get("arrival_airport", {}).get("time", ""),
             "stops":        len(legs) - 1,
-            "stopovers":    stopovers,
+            "segments":     segments,
         })
 
         if len(results) == 3:
@@ -223,24 +234,20 @@ def main():
         msg += "<b>Top 3 flights:</b>\n"
 
         for i, offer in enumerate(offers):
-            medal = MEDALS[i] if i < len(MEDALS) else f"{i+1}."
-            stopovers = offer["stopovers"]
-            if stopovers:
-                stopover_str = ", ".join(
-                    f"{s['name']} ({s['code']})" if s["name"] else s["code"]
-                    for s in stopovers
-                )
-            else:
-                stopover_str = None
+            medal    = MEDALS[i] if i < len(MEDALS) else f"{i+1}."
+            segments = offer["segments"]
 
             msg += f"\n{medal} <b>{currency} {offer['price']}</b> — {offer['airline']}\n"
             msg += f"   🛫 Departs: {offer['departure_at']}\n"
+
+            for seg in segments:
+                msg += f"   ✈️  {seg['from_code']} → {seg['to_code']}: {fmt_duration(seg['duration_min'])}\n"
+                if seg.get("layover_min") is not None:
+                    stopover_name = seg["to_name"] or seg["to_code"]
+                    msg += f"   🔁 Layover {stopover_name}: {fmt_duration(seg['layover_min'])}\n"
+
             msg += f"   🛬 Arrives: {offer['arrival_at']}\n"
-            msg += f"   ⏱ Flight time: {fmt_duration(offer['duration_min'])}\n"
-            if stopover_str:
-                msg += f"   🔁 Stopover: {stopover_str}\n"
-            else:
-                msg += f"   ✅ Direct\n"
+            msg += f"   ⏱ Total: {fmt_duration(offer['duration_min'])}\n"
 
         gf_url = f"https://www.google.com/flights?hl=en#flt={origin}.{destination}.{dep_date}"
         msg += f"\n<a href='{gf_url}'>Search on Google Flights →</a>"
