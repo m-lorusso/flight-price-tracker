@@ -18,6 +18,29 @@ LOWEST_FILE = Path(__file__).parent / "lowest_prices.json"
 
 MEDALS = ["🥇", "🥈", "🥉"]
 
+# Airports to avoid — Middle East hubs
+BLOCKED_AIRPORTS = {
+    "DOH",  # Doha, Qatar
+    "DXB",  # Dubai, UAE
+    "AUH",  # Abu Dhabi, UAE
+    "SHJ",  # Sharjah, UAE
+    "RUH",  # Riyadh, Saudi Arabia
+    "JED",  # Jeddah, Saudi Arabia
+    "BAH",  # Bahrain
+    "KWI",  # Kuwait
+    "MCT",  # Muscat, Oman
+    "CAI",  # Cairo, Egypt
+    "AMM",  # Amman, Jordan
+}
+
+
+def has_blocked_stopover(legs: list) -> bool:
+    for leg in legs[:-1]:
+        code = leg.get("arrival_airport", {}).get("id", "")
+        if code.upper() in BLOCKED_AIRPORTS:
+            return True
+    return False
+
 
 def search_flights(origin, destination, departure_date,
                    return_date=None, adults=1, currency="USD"):
@@ -48,8 +71,11 @@ def search_flights(origin, destination, departure_date,
     all_offers.sort(key=lambda o: o.get("price", float("inf")))
 
     results = []
-    for offer in all_offers[:3]:
+    for offer in all_offers:
         legs = offer.get("flights", [])
+        if has_blocked_stopover(legs):
+            continue
+
         first_leg = legs[0] if legs else {}
         last_leg  = legs[-1] if legs else {}
 
@@ -70,6 +96,9 @@ def search_flights(origin, destination, departure_date,
             "stops":        len(legs) - 1,
             "stopovers":    stopovers,
         })
+
+        if len(results) == 3:
+            break
 
     return results
 
