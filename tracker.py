@@ -237,15 +237,16 @@ def main():
             medal    = MEDALS[i] if i < len(MEDALS) else f"{i+1}."
             segments = offer["segments"]
 
-            legs_str = "  ".join(
-                f"{s['from_code']}→{s['to_code']} {fmt_duration(s['duration_min'])}"
-                + (f" | stop {fmt_duration(s['layover_min'])}" if s.get("layover_min") is not None else "")
-                for s in segments
-            )
+            msg += f"\n{medal} <b>{currency} {offer['price']}</b> — {offer['airline']}\n"
+            msg += f"   🛫 {offer['departure_at']}\n"
 
-            msg += f"{medal} <b>{currency} {offer['price']}</b> · {offer['airline']}\n"
-            msg += f"   {offer['departure_at']} → {offer['arrival_at']} ({fmt_duration(offer['duration_min'])})\n"
-            msg += f"   {legs_str}\n\n"
+            for seg in segments:
+                msg += f"   ✈️  {seg['from_code']}→{seg['to_code']}: {fmt_duration(seg['duration_min'])}\n"
+                if seg.get("layover_min") is not None:
+                    msg += f"   🔁 Layover: {fmt_duration(seg['layover_min'])}\n"
+
+            msg += f"   🛬 {offer['arrival_at']}\n"
+            msg += f"   ⏱ Total: {fmt_duration(offer['duration_min'])}\n"
 
         gf_url = f"https://www.google.com/flights?hl=en#flt={origin}.{destination}.{dep_date}"
         msg += f"<a href='{gf_url}'>Google Flights →</a>"
