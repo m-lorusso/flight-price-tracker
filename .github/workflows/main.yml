@@ -2,8 +2,11 @@ name: Flight Price Tracker
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */12 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -21,7 +24,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests python-dotenv
+        run: pip install requests python-dotenv matplotlib
 
       - name: Run tracker
         run: python tracker.py
@@ -29,3 +32,11 @@ jobs:
           SERPAPI_KEY:        ${{ secrets.SERPAPI_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Save price history
+        run: |
+          git config user.name "Flight Tracker Bot"
+          git config user.email "bot@noreply.github.com"
+          git add -f lowest_prices.json price_history.json 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "chore: update price history [skip ci]"
+          git push
