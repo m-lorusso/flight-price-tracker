@@ -24,7 +24,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests python-dotenv matplotlib
+        run: pip install -r requirements.txt
 
       - name: Run tracker
         run: python tracker.py
@@ -38,5 +38,9 @@ jobs:
           git config user.name "Flight Tracker Bot"
           git config user.email "bot@noreply.github.com"
           git add -f lowest_prices.json price_history.json 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "chore: update price history [skip ci]"
-          git push
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: update price history [skip ci]"
+            git push
+          else
+            echo "No data changes to commit."
+          fi
