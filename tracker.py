@@ -60,6 +60,7 @@ def search_flights(origin, destination, departure_date, return_date=None, adults
     if not all_offers:
         return [], None
 
+    all_offers = [o for o in all_offers if o.get("price") is not None]
     all_offers.sort(key=lambda o: o.get("price", float("inf")))
 
     direct_alert = None
