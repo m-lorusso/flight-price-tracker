@@ -397,10 +397,12 @@ def main():
         except Exception as e:
             print(f"    Telegram error: {e}")
 
-        # ── Flexible dates (morning run only — saves API quota) ──────────────
-        is_morning_run = now.hour < 6   # UTC 00:00 = 10am Sydney
+        # ── Flexible dates + cheapest week (Sundays only) ────────────────────
+        is_sunday      = now.weekday() == 6
+        last_chart_key = f"{key}_last_chart"
+        already_sent   = lowest.get(last_chart_key) == today
 
-        if is_morning_run:
+        if is_sunday and not already_sent:
             base     = datetime.strptime(dep_date, "%Y-%m-%d")
             flex_dates = [
                 (base + timedelta(days=d)).strftime("%Y-%m-%d")
@@ -442,7 +444,6 @@ def main():
                 print(f"    Flex dates error: {e}")
 
         # ── Cheapest week (Sundays only) ─────────────────────────────────────
-        is_sunday      = now.weekday() == 6
         last_chart_key = f"{key}_last_chart"
         already_sent   = lowest.get(last_chart_key) == today
 
