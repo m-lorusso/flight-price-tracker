@@ -398,9 +398,12 @@ def main():
             print(f"    Telegram error: {e}")
 
         # ── Flexible dates + cheapest week (Sundays only) ────────────────────
-        is_sunday      = now.weekday() == 6
-        last_chart_key = f"{key}_last_chart"
-        already_sent   = lowest.get(last_chart_key) == today
+        is_sunday       = now.weekday() == 6
+        last_chart_key  = f"{key}_last_chart"
+        last_cw_key     = f"{key}_last_cheapest_week"
+        already_sent    = lowest.get(last_chart_key) == today
+        last_cw         = lowest.get(last_cw_key)
+        cw_due          = not last_cw or (now - datetime.fromisoformat(last_cw)).days >= 28
 
         if is_sunday and not already_sent:
             base     = datetime.strptime(dep_date, "%Y-%m-%d")
@@ -443,9 +446,12 @@ def main():
             except Exception as e:
                 print(f"    Flex dates error: {e}")
 
-        # ── Cheapest week (Sundays only) ─────────────────────────────────────
+        # ── Sunday extras (chart + cheapest week once/month) ────────────────
         last_chart_key = f"{key}_last_chart"
+        last_cw_key    = f"{key}_last_cheapest_week"
         already_sent   = lowest.get(last_chart_key) == today
+        last_cw        = lowest.get(last_cw_key)
+        cw_due         = not last_cw or (now - datetime.fromisoformat(last_cw)).days >= 28
 
         if is_sunday and not already_sent and len(route_history) >= 2:
             try:
@@ -459,7 +465,7 @@ def main():
                     e["price"] for e in route_history
                     if 7 < (now - datetime.strptime(e["date"], "%Y-%m-%d")).days <= 14
                 ]
-                caption = f"<b>📊 Weekly Summary — {label}</b>\n"
+                caption  = f"<b>📊 Weekly Summary — {label}</b>\n"
                 if week_prices:
                     caption += f"This week's low: {currency} {min(week_prices)}\n"
                 if prev_prices:
@@ -472,44 +478,49 @@ def main():
                 save_json(LOWEST_FILE, lowest)
                 print("    Weekly chart sent!")
 
-                # Cheapest week — scan Sep 1 through departure date
-                dep_dt      = datetime.strptime(dep_date, "%Y-%m-%d")
-                scan_start  = dep_dt.replace(day=1)
-                scan_days   = (dep_dt - scan_start).days + 1
-                week_scan   = {}
+                # Cheapest week — once per month only
+                if cw_due:
+                    dep_dt     = datetime.strptime(dep_date, "%Y-%m-%d")
+                    scan_start = dep_dt.replace(day=1)
+                    scan_days  = (dep_dt - scan_start).days + 1
+                    week_scan  = {}
 
-                for d in range(scan_days):
-                    scan_date = (scan_start + timedelta(days=d)).strftime("%Y-%m-%d")
-                    if scan_date == dep_date:
-                        week_scan[scan_date] = best_price
-                    else:
-                        try:
-                            week_scan[scan_date] = search_best_price(
-                                origin, destination, scan_date, adults, currency
-                            )
-                        except Exception:
-                            week_scan[scan_date] = None
+                    for d in range(scan_days):
+                        scan_date = (scan_start + timedelta(days=d)).strftime("%Y-%m-%d")
+                        if scan_date == dep_date:
+                            week_scan[scan_date] = best_price
+                        else:
+                            try:
+                                week_scan[scan_date] = search_best_price(
+                                    origin, destination, scan_date, adults, currency
+                                )
+                            except Exception:
+                                week_scan[scan_date] = None
 
-                valid_scan   = {d: p for d, p in week_scan.items() if p is not None}
-                cheapest_day = min(valid_scan, key=valid_scan.get) if valid_scan else None
+                    valid_scan   = {d: p for d, p in week_scan.items() if p is not None}
+                    cheapest_day = min(valid_scan, key=valid_scan.get) if valid_scan else None
 
-                cw_msg  = "――――――――――――――――――\n"
-                cw_msg += f"📊 <b>Cheapest days in {dep_dt.strftime('%B')}</b>\n\n"
-                for scan_date in sorted(week_scan):
-                    price    = week_scan[scan_date]
-                    d_label  = datetime.strptime(scan_date, "%Y-%m-%d").strftime("%a %d %b")
-                    is_orig  = scan_date == dep_date
-                    is_cheap = scan_date == cheapest_day
-                    orig_tag = " (your date)" if is_orig else ""
-                    if price is None:
-                        cw_msg += f"   {d_label}: N/A{orig_tag}\n"
-                    elif is_cheap:
-                        cw_msg += f"   {d_label}: <b>{currency} {price}</b> ← cheapest{orig_tag}\n"
-                    else:
-                        cw_msg += f"   {d_label}: {currency} {price}{orig_tag}\n"
+                    cw_msg  = "――――――――――――――――――\n"
+                    cw_msg += f"📊 <b>Cheapest days in {dep_dt.strftime('%B')}</b>\n\n"
+                    for scan_date in sorted(week_scan):
+                        price    = week_scan[scan_date]
+                        d_label  = datetime.strptime(scan_date, "%Y-%m-%d").strftime("%a %d %b")
+                        is_orig  = scan_date == dep_date
+                        is_cheap = scan_date == cheapest_day
+                        orig_tag = " (your date)" if is_orig else ""
+                        if price is None:
+                            cw_msg += f"   {d_label}: N/A{orig_tag}\n"
+                        elif is_cheap:
+                            cw_msg += f"   {d_label}: <b>{currency} {price}</b> ← cheapest{orig_tag}\n"
+                        else:
+                            cw_msg += f"   {d_label}: {currency} {price}{orig_tag}\n"
 
-                send_telegram(cw_msg)
-                print("    Cheapest week sent!")
+                    send_telegram(cw_msg)
+                    lowest[last_cw_key] = now.isoformat()
+                    save_json(LOWEST_FILE, lowest)
+                    print("    Cheapest week sent!")
+                else:
+                    print("    Cheapest week not due yet — skipping.")
 
             except Exception as e:
                 print(f"    Sunday summary error: {e}")

@@ -2,7 +2,8 @@ name: Flight Price Tracker
 
 on:
   schedule:
-    - cron: '0 0,12 * * *'
+    - cron: '0 0 * * 1-6'      # Mon–Sat: once at 10am Sydney
+    - cron: '0 0,12 * * 0'   # Sunday: 10am and 10pm Sydney
   workflow_dispatch:
 
 permissions:
