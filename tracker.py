@@ -18,7 +18,7 @@ CONFIG_FILE  = Path(__file__).parent / "config.json"
 LOWEST_FILE  = Path(__file__).parent / "lowest_prices.json"
 HISTORY_FILE = Path(__file__).parent / "price_history.json"
 
-MEDALS = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+MEDALS = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
 
 BLOCKED_AIRPORTS = {
     "DOH", "DXB", "AUH", "SHJ", "RUH", "JED", "BAH", "KWI", "MCT", "CAI", "AMM",
@@ -108,7 +108,7 @@ def search_flights(origin, destination, departure_date, return_date=None, adults
             "segments":     segments,
         })
 
-        if len(results) == 5:
+        if len(results) == 10:
             break
 
     return results, direct_alert
@@ -330,7 +330,16 @@ def main():
         route_history = history.setdefault(key, [])
         if not route_history or route_history[-1]["date"] != today:
             route_history.append({"date": today, "price": best_price})
-            save_json(HISTORY_FILE, history)
+
+        # Record per-airline prices
+        airline_history = history.setdefault(f"{key}_airlines", {})
+        for offer in offers:
+            al = offer["airline"]
+            records = airline_history.setdefault(al, [])
+            if not records or records[-1]["date"] != today:
+                records.append({"date": today, "price": offer["price"]})
+
+        save_json(HISTORY_FILE, history)
 
         # ── Build message ────────────────────────────────────────────────────
         if is_new_low and prev_low is not None:
@@ -367,7 +376,8 @@ def main():
         if dow:
             msg += f"{dow}\n"
 
-        msg += "\n<b>Top 5 flights:</b>\n"
+        msg += "\n<b>Top 10 flights:</b>\n"
+        airline_history = history.get(f"{key}_airlines", {})
 
         for i, offer in enumerate(offers):
             medal      = MEDALS[i] if i < len(MEDALS) else f"{i+1}."
@@ -378,6 +388,16 @@ def main():
             msg += f"\n{medal} <b>{currency} {full_price}</b> — {airline}\n"
             if has_disc:
                 msg += f"   🎓 With 10% discount: <b>{currency} {round(full_price * 0.9)}</b>\n"
+
+            # Previous prices for this airline
+            prev_records = [r for r in airline_history.get(airline, []) if r["date"] != today][-3:]
+            if prev_records:
+                prev_str = "  ".join(
+                    f"{datetime.strptime(r['date'], '%Y-%m-%d').strftime('%d %b')}: {currency} {r['price']}"
+                    for r in reversed(prev_records)
+                )
+                msg += f"   📊 Prev: {prev_str}\n"
+
             msg += f"   🛫 Departs: {offer['departure_at']}\n"
 
             for seg in offer["segments"]:
