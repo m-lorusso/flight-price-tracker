@@ -108,7 +108,7 @@ def search_flights(origin, destination, departure_date, return_date=None, adults
             "segments":     segments,
         })
 
-        if len(results) == 10:
+        if len(results) == 5:
             break
 
     return results, direct_alert
@@ -376,7 +376,7 @@ def main():
         if dow:
             msg += f"{dow}\n"
 
-        msg += "\n<b>Top 10 flights:</b>\n"
+        msg += "\n<b>Top 5 flights:</b>\n"
         airline_history = history.get(f"{key}_airlines", {})
 
         for i, offer in enumerate(offers):
