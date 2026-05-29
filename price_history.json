@@ -20,5 +20,31 @@
       "date": "2026-05-29",
       "price": 2212
     }
-  ]
+  ],
+  "SYD-AMS-2026-09-14_airlines": {
+    "China Airlines": [
+      {
+        "date": "2026-05-29",
+        "price": 2212
+      }
+    ],
+    "XiamenAir": [
+      {
+        "date": "2026-05-29",
+        "price": 2348
+      }
+    ],
+    "Cathay Pacific": [
+      {
+        "date": "2026-05-29",
+        "price": 2705
+      }
+    ],
+    "China Southern": [
+      {
+        "date": "2026-05-29",
+        "price": 2888
+      }
+    ]
+  }
 }
