@@ -27,6 +27,10 @@ BLOCKED_AIRPORTS = {
 DISCOUNT_AIRLINES = {
     "Qatar Airways", "Singapore Airlines", "Cathay Pacific",
     "Emirates", "Malaysia Airlines", "Virgin Australia",
+    # Matched as a substring of the airline name in results (see has_disc below),
+    # so use the token as Google Flights labels it: THAI shows as "THAI" and
+    # Turkish as "Turkish Airlines" — "Thai"/"Turkish" catch both forms.
+    "Thai", "Turkish",
 }
 
 

@@ -1,10 +1,10 @@
 {
   "routes": [
     {
-      "label": "SYD to AMS (one-way)",
+      "label": "SYD→AMS — leave 9 Sep 2026",
       "origin": "SYD",
       "destination": "AMS",
-      "departure_date": "2026-09-14",
+      "departure_date": "2026-09-09",
       "adults": 2,
       "currency": "AUD"
     }
