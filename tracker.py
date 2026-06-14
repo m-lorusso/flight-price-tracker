@@ -33,6 +33,14 @@ DISCOUNT_AIRLINES = {
     "Thai", "Turkish",
 }
 
+# Drop any itinerary that includes a single stopover of 6 hours (360 min) or longer.
+MAX_LAYOVER_MIN = 360
+
+
+def has_long_layover(offer):
+    """True if any layover in this offer lasts >= MAX_LAYOVER_MIN minutes."""
+    return any((lay.get("duration") or 0) >= MAX_LAYOVER_MIN for lay in offer.get("layovers", []))
+
 
 def has_blocked_stopover(legs):
     for leg in legs[:-1]:
@@ -85,6 +93,9 @@ def search_flights(origin, destination, departure_date, return_date=None, adults
             }
 
         if has_blocked_stopover(legs):
+            continue
+
+        if has_long_layover(offer):
             continue
 
         first_leg = legs[0] if legs else {}
@@ -140,8 +151,11 @@ def search_best_price(origin, destination, departure_date, adults=1, currency="U
     all_offers.sort(key=lambda o: o.get("price", float("inf")))
 
     for offer in all_offers:
-        if not has_blocked_stopover(offer.get("flights", [])):
-            return offer.get("price")
+        if has_blocked_stopover(offer.get("flights", [])):
+            continue
+        if has_long_layover(offer):
+            continue
+        return offer.get("price")
     return None
 
 
@@ -270,8 +284,11 @@ def main():
     now     = datetime.now()
     now_str = now.strftime("%d %b %Y, %I:%M %p")
     today   = now.strftime("%Y-%m-%d")
+    no_flex = "--no-flex" in sys.argv
 
     print(f"\nFlight tracker — {now_str}")
+    if no_flex:
+        print("  --no-flex: skipping ±3-day flexible scan and monthly cheapest-day scan (1 call per route)")
 
     for route in routes:
         origin      = route["origin"].upper()
@@ -429,7 +446,7 @@ def main():
         last_cw         = lowest.get(last_cw_key)
         cw_due          = not last_cw or (now - datetime.fromisoformat(last_cw)).days >= 28
 
-        if is_sunday and not already_sent:
+        if is_sunday and not already_sent and not no_flex:
             base     = datetime.strptime(dep_date, "%Y-%m-%d")
             flex_dates = [
                 (base + timedelta(days=d)).strftime("%Y-%m-%d")
@@ -503,7 +520,7 @@ def main():
                 print("    Weekly chart sent!")
 
                 # Cheapest week — once per month only
-                if cw_due:
+                if cw_due and not no_flex:
                     dep_dt     = datetime.strptime(dep_date, "%Y-%m-%d")
                     scan_start = dep_dt.replace(day=1)
                     scan_days  = (dep_dt - scan_start).days + 1

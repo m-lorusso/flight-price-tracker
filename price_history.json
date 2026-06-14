@@ -414,5 +414,31 @@
         "price": 2019
       }
     ]
+  },
+  "SYD-AMS-2026-09-09": [
+    {
+      "date": "2026-06-14",
+      "price": 2528
+    }
+  ],
+  "SYD-AMS-2026-09-09_airlines": {
+    "Turkish Airlines": [
+      {
+        "date": "2026-06-14",
+        "price": 2528
+      }
+    ],
+    "Cathay Pacific": [
+      {
+        "date": "2026-06-14",
+        "price": 2725
+      }
+    ],
+    "Singapore Airlines": [
+      {
+        "date": "2026-06-14",
+        "price": 4361
+      }
+    ]
   }
 }
