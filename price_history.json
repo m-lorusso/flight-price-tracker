@@ -414,5 +414,43 @@
         "price": 2019
       }
     ]
+  },
+  "SYD-AMS-2026-09-09": [
+    {
+      "date": "2026-06-14",
+      "price": 1741
+    }
+  ],
+  "SYD-AMS-2026-09-09_airlines": {
+    "China Eastern": [
+      {
+        "date": "2026-06-14",
+        "price": 1741
+      }
+    ],
+    "China Airlines": [
+      {
+        "date": "2026-06-14",
+        "price": 2215
+      }
+    ],
+    "China Southern": [
+      {
+        "date": "2026-06-14",
+        "price": 2256
+      }
+    ],
+    "XiamenAir": [
+      {
+        "date": "2026-06-14",
+        "price": 2343
+      }
+    ],
+    "THAI": [
+      {
+        "date": "2026-06-14",
+        "price": 2503
+      }
+    ]
   }
 }
